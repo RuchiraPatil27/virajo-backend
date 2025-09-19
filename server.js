@@ -24,8 +24,7 @@ app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || [
         'https://virajo.world', 
         'https://www.virajo.world', 
-        'http://localhost:10000', 
-        'http://localhost:10000'
+        'http://localhost:3001'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -966,29 +965,37 @@ app.post('/reset-password', async (req, res) => {
 });
 
 // Get User Profile
-app.get('/profile', authenticate, async (req, res) => {
-    try {
-        if (global.mongoFallback && !mongoose.connection.readyState) {
-            const userData = global.mongoFallback.users.get(req.user.email);
-            return res.json({ status: 'success', user: userData });
-        }
-
-        const user = await User.findById(req.user.id).select('-password');
-        res.json({ status: 'success', user });
-    } catch (err) {
-        res.status(500).json({ status: 'error', message: err.message });
-    }
-});
-
-// Serve Frontend
+// API Root endpoint
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.json({ 
+        status: 'success', 
+        message: 'Virajo Backend API is running',
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        endpoints: {
+            health: '/health',
+            register: '/register',
+            login: '/login',
+            profile: '/profile',
+            forgotPassword: '/forgot-password',
+            getSecurityQuestions: '/get-security-questions',
+            verifySecurityQuestions: '/verify-security-questions',
+            resetPassword: '/reset-password'
+        }
+    });
 });
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+// Handle 404 for undefined routes
+app.use((req, res) => {
+    res.status(404).json({ 
+        status: 'error', 
+        message: `Endpoint ${req.path} not found`,
+        method: req.method,
+        availableEndpoints: {
+            GET: ['/health', '/profile', '/'],
+            POST: ['/register', '/login', '/forgot-password', '/get-security-questions', '/verify-security-questions', '/reset-password']
+        }
+    });
 });
-
 // Start Server
 app.listen(PORT, () => {
     console.log('\n================================');
